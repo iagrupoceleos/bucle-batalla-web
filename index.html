@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
-		<title>Recreacion Bucle Batalla v0</title>
+		<title>Bucle de batalla</title>
 		<style>
 html, body, #canvas {
 	margin: 0;
@@ -89,13 +89,23 @@ body {
 	text-align: center;
 	z-index: 1;
 }
-		</style>
+		
+/* Botones de cara para celular (no hay teclado): envían las teclas 1-4 al juego. */
+#caras { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; gap: 6px;
+  opacity: .85; font: 600 13px/1 system-ui, sans-serif; }
+#caras button { background: rgba(0,0,0,.55); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 14px;
+  padding: 7px 11px; touch-action: manipulation; }
+#caras button.activa { background: #ffd23f; color: #000; border-color: #ffd23f; }
+</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
 	</head>
 	<body>
-		<canvas id="canvas">
+		<div id="caras" aria-label="Cara visual">
+	<button data-k="1" class="activa">Gris</button><button data-k="2">A</button><button data-k="3">B</button><button data-k="4">C</button>
+</div>
+<canvas id="canvas">
 			Your browser does not support the canvas tag.
 		</canvas>
 
@@ -162,6 +172,24 @@ const engine = new Engine(GODOT_CONFIG);
 		initializing = false;
 	}
 
+
+	// --- Cara visual desde el celular: los botones envían las teclas 1-4 al lienzo del juego, y
+	// ?cara=a|b|c la elige sola al arrancar. No toca el juego: es la misma tecla que en escritorio.
+	(function () {
+		const canvas = document.getElementById('canvas');
+		const barra = document.getElementById('caras');
+		function tecla(n) {
+			const d = { key: String(n), code: 'Digit' + n, keyCode: 48 + n, which: 48 + n, bubbles: true, cancelable: true };
+			canvas.dispatchEvent(new KeyboardEvent('keydown', d));
+			setTimeout(() => canvas.dispatchEvent(new KeyboardEvent('keyup', d)), 60);
+			barra.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.k === String(n)));
+		}
+		barra.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { tecla(Number(b.dataset.k)); canvas.focus(); } });
+		const q = new URLSearchParams(location.search).get('cara');
+		const n = { gris: 1, a: 2, b: 3, c: 4 }[(q || '').toLowerCase()];
+		if (n) { window.__caraInicial = n; }
+		window.__tecla = tecla;
+	}());
 	const missing = Engine.getMissingFeatures({
 		threads: GODOT_THREADS_ENABLED,
 	});
@@ -211,6 +239,7 @@ const engine = new Engine(GODOT_CONFIG);
 			},
 		}).then(() => {
 			setStatusMode('hidden');
+			if (window.__caraInicial) { [800, 2500].forEach((t) => setTimeout(() => window.__tecla(window.__caraInicial), t)); }
 		}, displayFailureNotice);
 	}
 }());
